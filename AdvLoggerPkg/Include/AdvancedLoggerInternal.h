@@ -46,11 +46,6 @@
 #define ADVANCED_LOGGER_PHASE_CNT          11
 
 //
-// The maximum depth to follow when traversing chains of advanced logger info structures
-//
-#define ADVANCED_LOGGER_MAX_LOGGER_CHAIN_DEPTH  3
-
-//
 // These Pcds are used to carve out a PEI memory buffer from the temporary RAM.
 //
 //  PcdAdvancedLoggerBase -        NULL = UEFI starts with PEI, and SEC provides no memory log buffer
