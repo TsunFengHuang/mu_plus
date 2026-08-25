@@ -189,11 +189,7 @@ OnExitBootServicesNotification (
   IN VOID       *Context
   )
 {
-  //
-  // Runtime logging is currently not supported, so clear mLoggerInfo.
-  //
   mAdvancedLoggerAtRuntime = TRUE;
-  mLoggerInfo              = NULL;
   mBS                      = NULL;
 }
 
