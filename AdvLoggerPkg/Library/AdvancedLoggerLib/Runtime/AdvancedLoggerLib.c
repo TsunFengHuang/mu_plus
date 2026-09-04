@@ -25,11 +25,13 @@ STATIC ADVANCED_LOGGER_INFO  *mLoggerInfo           = NULL;
 STATIC UINT32                mBufferSize            = 0;
 STATIC EFI_PHYSICAL_ADDRESS  mMaxAddress            = 0;
 STATIC EFI_BOOT_SERVICES     *mBS                   = NULL;
-STATIC EFI_EVENT             mExitBootServicesEvent = NULL;
+STATIC EFI_RUNTIME_SERVICES  *mRT                           = NULL;
+STATIC EFI_EVENT             mExitBootServicesEvent        = NULL;
+STATIC EFI_EVENT             mVirtualAddressChangeEvent    = NULL;
 
 //
-// TRUE after ExitBootServices. This instance clears its logger info pointer at
-// ExitBootServices, so AdvancedLoggerPrintToHwPort uses this flag to obtain the OS runtime
+// TRUE after ExitBootServices. The logger info pointer is preserved for runtime
+// buffer logging; the pointer is converted in the VirtualAddressChange handler.
 // status once the logger info block is no longer available.
 //
 STATIC BOOLEAN  mAdvancedLoggerAtRuntime = FALSE;
@@ -175,6 +177,20 @@ AdvancedLoggerPrintToHwPort (
 }
 
 /**
+    Convert mLoggerInfo and mMaxAddress after SetVirtualAddressMap.
+ **/
+VOID
+EFIAPI
+OnVirtualAddressChangeNotification (
+  IN EFI_EVENT  Event,
+  IN VOID       *Context
+  )
+{
+  mRT->ConvertPointer (0, (VOID **)&mLoggerInfo);
+  mMaxAddress = (mLoggerInfo != NULL) ? LOG_MAX_ADDRESS (mLoggerInfo) : 0;
+}
+
+/**
     Inform all instances of Advanced Logger that ExitBoot Services has occurred.
 
     @param    Event           Not Used.
@@ -190,10 +206,9 @@ OnExitBootServicesNotification (
   )
 {
   //
-  // Runtime logging is currently not supported, so clear mLoggerInfo.
+  // Keep mLoggerInfo alive for runtime buffer logging.
   //
   mAdvancedLoggerAtRuntime = TRUE;
-  mLoggerInfo              = NULL;
   mBS                      = NULL;
 }
 
@@ -220,6 +235,7 @@ DxeRuntimeAdvancedLoggerLibConstructor (
   // the constructor runs.
   //
   mBS = SystemTable->BootServices;
+  mRT = SystemTable->RuntimeServices;
   AdvancedLoggerGetLoggerInfo ();
 
   ASSERT (mLoggerInfo != NULL);
@@ -238,6 +254,19 @@ DxeRuntimeAdvancedLoggerLibConstructor (
 
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "%a - Create Event for Exit Boot Services failed. Code = %r\n", __func__, Status));
+    }
+
+    Status = mBS->CreateEventEx (
+                    0,
+                    TPL_CALLBACK,
+                    OnVirtualAddressChangeNotification,
+                    NULL,
+                    &gEfiEventVirtualAddressChangeGuid,
+                    &mVirtualAddressChangeEvent
+                    );
+
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a - Create Event for Virtual Address Change failed. Code = %r\n", __func__, Status));
     }
   }
 
@@ -262,6 +291,10 @@ DxeRuntimeAdvancedLoggerLibDestructor (
 {
   if (mExitBootServicesEvent != NULL) {
     mBS->CloseEvent (mExitBootServicesEvent);
+  }
+
+  if (mVirtualAddressChangeEvent != NULL) {
+    mBS->CloseEvent (mVirtualAddressChangeEvent);
   }
 
   return EFI_SUCCESS;

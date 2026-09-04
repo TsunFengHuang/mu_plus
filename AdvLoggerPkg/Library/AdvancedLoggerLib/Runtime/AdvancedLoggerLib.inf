@@ -38,6 +38,7 @@
   TimerLib
 
 [Guids]
+  gEfiEventVirtualAddressChangeGuid                                         ## CONSUMES
 
 [Protocols]
   gAdvancedLoggerProtocolGuid                                               ## CONSUMES
