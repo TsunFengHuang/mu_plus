@@ -36,8 +36,10 @@
   BaseLib
   SynchronizationLib
   TimerLib
+  IoLib
 
 [Guids]
+  gEfiEventVirtualAddressChangeGuid                                         ## CONSUMES
 
 [Protocols]
   gAdvancedLoggerProtocolGuid                                               ## CONSUMES
